@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# dSPACE Bus API DLLs and libs (local copies - do not commit binaries)
+*.dll
+*.lib
+*.so
+*.pdb
+
+# Logs
+*.log
+
+# Distribution / packaging
+*.tar.gz
+*.zip
