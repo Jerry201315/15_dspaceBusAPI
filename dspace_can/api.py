@@ -142,21 +142,21 @@ class DsCanApi:
         dll.DSCAN_GetAvailableChannels.restype = ctypes.c_int32
 
         dll.DSCAN_IsChannelAvailable.argtypes = [
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szVendorName
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szInterfaceName
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szInterfaceSerialNumber
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szChannelIdentifier
-            ctypes.POINTER(ctypes.c_bool),           # pbIsAvailable (out)
+            ctypes.c_char_p,  # szVendorName
+            ctypes.c_char_p,  # szInterfaceName
+            ctypes.c_char_p,  # szInterfaceSerialNumber
+            ctypes.c_char_p,  # szChannelIdentifier
+            ctypes.POINTER(ctypes.c_bool),  # pbIsAvailable (out)
         ]
         dll.DSCAN_IsChannelAvailable.restype = ctypes.c_int32
 
         # --- Registration ---
         dll.DSCAN_RegisterChannel.argtypes = [
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szVendorName
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szInterfaceName
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szInterfaceSerialNumber
-            ctypes.c_char * DSCAN_MAX_NAME_LENGTH,  # szChannelIdentifier
-            ctypes.POINTER(ctypes.c_int32),          # ptHandle (out)
+            ctypes.c_char_p,  # szVendorName
+            ctypes.c_char_p,  # szInterfaceName
+            ctypes.c_char_p,  # szInterfaceSerialNumber
+            ctypes.c_char_p,  # szChannelIdentifier
+            ctypes.POINTER(ctypes.c_int32),  # ptHandle (out)
         ]
         dll.DSCAN_RegisterChannel.restype = ctypes.c_int32
 
