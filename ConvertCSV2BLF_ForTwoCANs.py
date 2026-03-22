@@ -998,7 +998,14 @@ def upload_blf_to_gcs(blf_file_path, test_name, test_setup='', sample_no='',
 
         log(f"Uploading BLF to GCS: gs://{bucket_name}/{gcs_path}")
 
-        client = gcs_storage.Client()
+        # Use embedded credentials from CanStreaming module
+        try:
+            from CanStreaming import _get_sa_credentials
+            from google.oauth2 import service_account as sa
+            creds = sa.Credentials.from_service_account_info(_get_sa_credentials())
+            client = gcs_storage.Client(credentials=creds, project=creds.project_id)
+        except ImportError:
+            client = gcs_storage.Client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(gcs_path)
         blob.upload_from_filename(blf_file_path)
