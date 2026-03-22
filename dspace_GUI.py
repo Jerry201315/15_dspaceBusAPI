@@ -94,7 +94,7 @@ class DSpaceGUI:
             'test_setup': '',
             'sample_no': '',
             'backend_api_url': 'http://10.226.38.100/api',
-            'api_token': '',
+            'api_token': '03578a8686b5fc6007a6e5266f841756bcd58541',
             'auto_upload_blf': False,
             'blf_save_interval': 240,
             # CAN Streaming settings
