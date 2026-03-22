@@ -90,7 +90,7 @@ class DSpaceGUI:
             'can_mode': '2-CAN', #FOR 3-CAN MODE
             # GCS upload settings for BLF integration
             'test_name': '',
-            'ddg_environment': 'dev',
+            'ddg_environment': 'prod',
             'test_setup': '',
             'sample_no': '',
             'backend_api_url': 'https://gemini-dash.jlr-apps.com/api',
@@ -132,7 +132,7 @@ class DSpaceGUI:
 
         # GCS upload settings variables
         self.test_name_var = tk.StringVar(value=self.settings.get('test_name', ''))
-        self.ddg_environment_var = tk.StringVar(value=self.settings.get('ddg_environment', 'dev'))
+        self.ddg_environment_var = tk.StringVar(value=self.settings.get('ddg_environment', 'prod'))
         self.test_setup_var = tk.StringVar(value=self.settings.get('test_setup', ''))
         self.sample_no_var = tk.StringVar(value=self.settings.get('sample_no', ''))
         self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', '') or 'https://gemini-dash.jlr-apps.com/api')
@@ -1219,12 +1219,14 @@ class DSpaceGUI:
                     merged_settings = default_settings.copy()
                     merged_settings.update(loaded_settings)
 
-                    # Ensure backend URL has /api prefix
+                    # Migrate backend URL to gemini-dash
                     url = merged_settings.get('backend_api_url', '')
-                    if not url:
+                    if not url or '10.226.38.100' in url or (url.rstrip('/').endswith('jlr-apps.com') and '/api' not in url):
                         merged_settings['backend_api_url'] = 'https://gemini-dash.jlr-apps.com/api'
-                    elif url.rstrip('/').endswith('jlr-apps.com'):
-                        merged_settings['backend_api_url'] = url.rstrip('/') + '/api'
+
+                    # Migrate: default environment to prod
+                    if merged_settings.get('ddg_environment', '') == 'dev':
+                        merged_settings['ddg_environment'] = 'prod'
 
                     self.safe_log_message("Settings loaded successfully")
                     return merged_settings
@@ -1983,7 +1985,7 @@ class DSpaceGUI:
             if hasattr(self, 'test_name_var'):
                 self.test_name_var.set(self.settings.get('test_name', ''))
             if hasattr(self, 'ddg_environment_var'):
-                self.ddg_environment_var.set(self.settings.get('ddg_environment', 'dev'))
+                self.ddg_environment_var.set(self.settings.get('ddg_environment', 'prod'))
             if hasattr(self, 'test_setup_var'):
                 self.test_setup_var.set(self.settings.get('test_setup', ''))
             if hasattr(self, 'sample_no_var'):
@@ -2037,7 +2039,7 @@ class DSpaceGUI:
                 'blf_pmz_csv_path': self.blf_pmz_csv_path_var.get() if hasattr(self, 'blf_pmz_csv_path_var') else '',
                 'blf_debug_csv_path': self.blf_debug_csv_path_var.get() if hasattr(self, 'blf_debug_csv_path_var') else '',
                 'test_name': self.test_name_var.get() if hasattr(self, 'test_name_var') else '',
-                'ddg_environment': self.ddg_environment_var.get() if hasattr(self, 'ddg_environment_var') else 'dev',
+                'ddg_environment': self.ddg_environment_var.get() if hasattr(self, 'ddg_environment_var') else 'prod',
                 'test_setup': self.test_setup_var.get() if hasattr(self, 'test_setup_var') else '',
                 'sample_no': self.sample_no_var.get() if hasattr(self, 'sample_no_var') else '',
                 'backend_api_url': self.backend_api_url_var.get() if hasattr(self, 'backend_api_url_var') else '',
