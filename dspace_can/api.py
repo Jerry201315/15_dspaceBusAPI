@@ -276,8 +276,20 @@ class DsCanApi:
         ]
         dll.DSCAN_SetChannelOutput.restype = ctypes.c_int32
 
-        # --- Bus info ---
-        # DSCAN_GetBusInfo defined but omitting detailed struct for now
+        # --- Event notification ---
+        dll.DSCAN_SetEventNotification.argtypes = [
+            ctypes.c_int32,   # tChannelHandle
+            ctypes.c_void_p,  # tEventHandle (Windows HANDLE)
+            ctypes.c_uint32,  # ulReceiveQueueLevel
+        ]
+        dll.DSCAN_SetEventNotification.restype = ctypes.c_int32
+
+        # --- Bus statistics ---
+        dll.DSCAN_EnableBusStatistics.argtypes = [
+            ctypes.c_int32,  # tChannelHandle
+            ctypes.c_bool,   # bEnable
+        ]
+        dll.DSCAN_EnableBusStatistics.restype = ctypes.c_int32
 
     # ------------------------------------------------------------------ #
     # Helper: check error code
@@ -502,23 +514,22 @@ class DsCanApi:
         self._check("DSCAN_GetReceiveQueueLevel", err)
         return count.value
 
-    def read_messages(self, handle: int, max_messages: int = 0) -> list[DSSCanMessage]:
+    def read_messages(self, handle: int, max_messages: int = 256) -> list[DSSCanMessage]:
         """Read CAN messages from the receive queue.
+
+        Uses a single DLL call with a pre-allocated buffer (no separate
+        GetReceiveQueueLevel call) for better throughput.
 
         Args:
             handle: Channel handle.
-            max_messages: Max messages to read. 0 = read all available.
+            max_messages: Buffer size — max messages to read per call.
+                          Higher values reduce call overhead but use more memory.
 
         Returns:
-            List of DSSCanMessage objects.
+            List of DSSCanMessage objects (may be empty).
         """
-        queue_level = self.get_receive_queue_level(handle)
-        if queue_level == 0:
-            return []
-
-        count = min(queue_level, max_messages) if max_messages > 0 else queue_level
-        msg_count = ctypes.c_uint32(count)
-        messages = (DSSCanMessage * count)()
+        msg_count = ctypes.c_uint32(max_messages)
+        messages = (DSSCanMessage * max_messages)()
 
         err = self._dll.DSCAN_ReadReceiveQueue(
             handle, ctypes.byref(msg_count), messages
@@ -586,6 +597,38 @@ class DsCanApi:
         """Clear all messages from the transmit queue."""
         err = self._dll.DSCAN_FlushTransmitQueue(handle)
         self._check("DSCAN_FlushTransmitQueue", err)
+
+    # ------------------------------------------------------------------ #
+    # Event notification
+    # ------------------------------------------------------------------ #
+
+    def set_event_notification(self, handle: int, event_handle, queue_level: int = 1):
+        """Enable event-based notification when messages arrive.
+
+        Uses a Windows Event (from win32event.CreateEvent or ctypes
+        windll.kernel32.CreateEventW) so the read loop can block via
+        WaitForSingleObject instead of polling with sleep.
+
+        Note: For dSPACE interfaces, queue_level is ignored — the event
+        fires on every single received message.
+
+        Args:
+            handle: Channel handle.
+            event_handle: Windows HANDLE from CreateEvent (as int or c_void_p).
+            queue_level: Trigger threshold (ignored by dSPACE hardware).
+        """
+        err = self._dll.DSCAN_SetEventNotification(handle, event_handle, queue_level)
+        self._check("DSCAN_SetEventNotification", err)
+
+    def clear_event_notification(self, handle: int):
+        """Disable event notification (pass NULL handle)."""
+        err = self._dll.DSCAN_SetEventNotification(handle, None, 0)
+        self._check("DSCAN_SetEventNotification", err)
+
+    def enable_bus_statistics(self, handle: int, enable: bool = True):
+        """Enable/disable periodic bus statistics messages in the receive queue."""
+        err = self._dll.DSCAN_EnableBusStatistics(handle, enable)
+        self._check("DSCAN_EnableBusStatistics", err)
 
     # ------------------------------------------------------------------ #
     # Timing

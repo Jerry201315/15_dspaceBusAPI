@@ -1,4 +1,5 @@
 import argparse
+import ctypes
 import sys
 import time
 
@@ -9,12 +10,23 @@ from dspace_can.constants import (
     DSCAN_BAUD_500K,
     DSCAN_IDENTIFIER_TYPE_XTD,
     DSCAN_MESSAGE_TYPE_REMOTE,
+    DSCAN_MESSAGE_TYPE_DATA,
     DSCAN_RX_MESSAGE_FLAG_TX_ACKNOWLEDGE,
     DSCAN_RX_MESSAGE_FLAG_FD,
+    DSCAN_RX_MESSAGE_FLAG_RX_BUFFER_OVERRUN,
+    DSCAN_RX_MESSAGE_FLAG_HW_RX_BUFFER_OVERRUN,
 )
 
+# Windows constants for WaitForSingleObject
+WAIT_OBJECT_0 = 0x00000000
+WAIT_TIMEOUT = 0x00000102
+INFINITE = 0xFFFFFFFF
+
+OVERRUN_FLAGS = DSCAN_RX_MESSAGE_FLAG_RX_BUFFER_OVERRUN | DSCAN_RX_MESSAGE_FLAG_HW_RX_BUFFER_OVERRUN
+
+
 def format_can_message(msg) -> str:
-    """Format a CAN message for display using dSPACE Bus API structures."""
+    """Format a CAN message for display."""
     is_xtd = (msg.tCanIdentifierType == DSCAN_IDENTIFIER_TYPE_XTD)
     is_rtr = (msg.tMessageType == DSCAN_MESSAGE_TYPE_REMOTE)
     is_fd = bool(msg.ulFlags & DSCAN_RX_MESSAGE_FLAG_FD)
@@ -31,7 +43,8 @@ def format_can_message(msg) -> str:
     data_len = msg.usDLC
     hex_data = " ".join(f"{msg.ucData[i]:02X}" for i in range(min(data_len, 64)))
 
-    return f"[Tick: {msg.ui64Timestamp:12d}] ID={id_fmt}  DLC={msg.usDLC:<2d}  Data=[{hex_data}]  ({flags_str})"
+    return f"[{msg.ui64Timestamp:12d}] ID={id_fmt}  DLC={msg.usDLC:<2d}  [{hex_data}]  ({flags_str})"
+
 
 def main():
     parser = argparse.ArgumentParser(description="Read CAN messages from dSPACE hardware")
@@ -39,6 +52,8 @@ def main():
     parser.add_argument("--channel", type=int, default=0, help="Channel index to use (default: 0)")
     parser.add_argument("--baudrate", type=int, default=DSCAN_BAUD_500K, help="CAN baud rate in bit/s")
     parser.add_argument("--dll", type=str, default=None, help="Path to DSBusApiCan.dll")
+    parser.add_argument("--poll", action="store_true", help="Use polling instead of event-based waiting")
+    parser.add_argument("--batch", type=int, default=512, help="Read buffer size (default: 512)")
     args = parser.parse_args()
 
     print("=== dSPACE CAN Message Reader ===\n")
@@ -48,7 +63,6 @@ def main():
     print(f"Discovering CAN channels at {args.ip}...")
     channels = api.get_available_channels(ip_address=args.ip)
 
-    #print("dspace channels", channels)
     if not channels:
         print("ERROR: No CAN channels found. Check hardware and IP.")
         sys.exit(1)
@@ -58,15 +72,17 @@ def main():
         sys.exit(1)
 
     target = channels[args.channel]
-    print("target channel",target)
     print(f"\n---> USING CHANNEL {args.channel}: {target.szChannelIdentifier.decode()} <---")
 
     handle = api.register_channel(target)
     print(f"[OK] Channel registered (handle={handle}).")
 
+    event_handle = None
+    kernel32 = None
+
     try:
-        access = api.init_channel(handle)
-        print(f"[OK] Channel initialized (access_permission={access}).")
+        access = api.init_channel(handle, rx_queue_size=32768)
+        print(f"[OK] Channel initialized (access_permission={access}, rx_queue=32768).")
 
         try:
             current_baud = api.get_baudrate(handle)
@@ -75,7 +91,7 @@ def main():
             print(f"[WARN] Could not read baud rate: {e}")
 
         api.set_acceptance(handle, 0, 0, 0, 0)
-        print("[OK] Acceptance filter opened!")
+        print("[OK] Acceptance filter opened.")
 
         try:
             api.set_transmit_acknowledge(handle, True)
@@ -83,28 +99,66 @@ def main():
         except Exception as e:
             print(f"[WARN] Could not enable Tx Ack: {e}")
 
+        # Set up event notification for blocking reads (instead of polling)
+        if not args.poll:
+            try:
+                kernel32 = ctypes.windll.kernel32
+                event_handle = kernel32.CreateEventW(None, False, False, None)
+                api.set_event_notification(handle, event_handle, 1)
+                print("[OK] Event notification enabled (blocking mode).")
+            except Exception as e:
+                print(f"[WARN] Event notification failed, falling back to polling: {e}")
+                event_handle = None
+
         api.activate_channel(handle)
         print("[OK] Channel activated!\n")
 
-        # --- THE TX LOOPBACK TEST ---
-        #print("Sending test message (ID: 0x123) from Python...")
-        #api.transmit_message(handle, can_id=0x123, data=b'\xAA\xBB\xCC', flags=0)
+        mode = "polling" if event_handle is None else "event-driven"
+        print(f"Listening for CAN messages ({mode}, batch={args.batch})...")
+        print("Press Ctrl+C to stop.\n")
 
-        print("Listening for CAN messages... (Press Ctrl+C to stop)\n")
         msg_total = 0
+        overrun_count = 0
+        t_start = time.perf_counter()
+
         while True:
-            messages = api.read_messages(handle)
+            # Wait for messages: event-driven or polling
+            if event_handle is not None:
+                kernel32.WaitForSingleObject(event_handle, 100)  # 100ms timeout for Ctrl+C
+
+            messages = api.read_messages(handle, max_messages=args.batch)
+
             for msg in messages:
+                if msg.tMessageType != DSCAN_MESSAGE_TYPE_DATA:
+                    continue
+                if msg.ulFlags & OVERRUN_FLAGS:
+                    overrun_count += 1
+                    if overrun_count <= 5:
+                        print(f"  *** BUFFER OVERRUN detected (#{overrun_count}) ***")
                 print(format_can_message(msg))
                 msg_total += 1
 
-            if not messages:
-                time.sleep(0.01)
+            if not messages and event_handle is None:
+                time.sleep(0.001)  # 1ms poll (was 10ms)
 
     except KeyboardInterrupt:
-        print("\n\n--- Interrupted by user ---")
+        print("\n\n--- Interrupted ---")
     finally:
-        print(f"Received {msg_total} message(s).")
+        elapsed = time.perf_counter() - t_start if 't_start' in dir() else 0
+        print(f"\nReceived {msg_total} message(s) in {elapsed:.1f}s", end="")
+        if elapsed > 0 and msg_total > 0:
+            print(f" ({msg_total / elapsed:.0f} msg/s)", end="")
+        print()
+        if overrun_count:
+            print(f"WARNING: {overrun_count} buffer overrun(s) detected — messages were lost!")
+
+        if event_handle is not None:
+            try:
+                api.clear_event_notification(handle)
+            except Exception:
+                pass
+            kernel32.CloseHandle(event_handle)
+
         api.deactivate_channel(handle)
         api.unregister_channel(handle)
         print("[OK] Channel deactivated and unregistered.")
