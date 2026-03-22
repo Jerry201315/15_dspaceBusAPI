@@ -1043,7 +1043,7 @@ def upload_blf_to_gcs(blf_file_path, test_name, test_setup='', sample_no='',
                     payload['end_time'] = _end
 
                 log(f"Registering BLF with backend: {register_url}")
-                response = requests.post(register_url, json=payload, headers=headers, timeout=30)
+                response = requests.post(register_url, json=payload, headers=headers, timeout=30, verify=False)
 
                 if response.ok:
                     log(f"BLF registered successfully (ID: {response.json().get('id', 'N/A')})")

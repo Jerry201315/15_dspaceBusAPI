@@ -2529,7 +2529,7 @@ class DSpaceGUI:
             import requests
             token = os.environ.get('DDG_API_TOKEN', '')
             headers = {'Authorization': f'Token {token}'} if token else {}
-            resp = requests.get(f"{api_url}/sbtl/tests/", headers=headers, timeout=10)
+            resp = requests.get(f"{api_url}/sbtl/tests/", headers=headers, timeout=10, verify=False)
             resp.raise_for_status()
             tests = resp.json()
             # Extract test names, sort descending (largest number = latest)
