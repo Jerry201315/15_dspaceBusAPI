@@ -15,11 +15,7 @@ import time
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent))
 
 from dspace_can import DsCanApi
-from dspace_can.constants import (
-    DSCAN_BAUD_500K,
-    DSCAN_MSG_TX_FLAG_NONE,
-    DSCAN_MSG_TX_FLAG_XTD,
-)
+from dspace_can.constants import DSCAN_BAUD_500K
 
 
 def parse_hex_data(hex_string: str) -> bytes:
@@ -41,7 +37,6 @@ def main():
 
     can_id = int(args.id, 16) if args.id.startswith("0x") else int(args.id)
     payload = parse_hex_data(args.data)
-    flags = DSCAN_MSG_TX_FLAG_XTD if args.extended else DSCAN_MSG_TX_FLAG_NONE
 
     print("=== dSPACE CAN Message Transmitter ===\n")
 
@@ -71,7 +66,7 @@ def main():
         id_str = f"0x{can_id:08X}" if args.extended else f"0x{can_id:03X}"
         print(f"Sending: ID={id_str} Data=[{hex_str}]")
 
-        api.transmit_message(handle, can_id, payload, flags)
+        api.transmit_message(handle, can_id, payload, extended=args.extended)
         print("[OK] Message sent.\n")
 
         # Listen briefly for responses

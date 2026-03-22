@@ -44,6 +44,7 @@ from .structures import (
     DSSCanChannelsSearchAttribute,
     DSSCanMessage,
     DSSCanBitTimingParameters,
+    DSSCanBusInfo,
 )
 
 
@@ -165,10 +166,10 @@ class DsCanApi:
 
         # --- Initialization & configuration ---
         dll.DSCAN_InitChannel.argtypes = [
-            ctypes.c_int32,          # tHandle
+            ctypes.c_int32,          # tChannelHandle
             ctypes.c_int32,          # tIdentifierType (DSECanIdentifierType)
             ctypes.c_uint32,         # ulRxQueueSize
-            ctypes.c_bool,           # bExclusive
+            ctypes.c_bool,           # bFD (CAN FD support flag)
             ctypes.POINTER(ctypes.c_bool),  # pbAccessPermission (out)
         ]
         dll.DSCAN_InitChannel.restype = ctypes.c_int32
@@ -189,6 +190,19 @@ class DsCanApi:
             ctypes.POINTER(ctypes.c_uint32),            # pulBaudrate
         ]
         dll.DSCAN_ConvertBitTimingParametersToBaudrate.restype = ctypes.c_int32
+
+        dll.DSCAN_ConvertBaudrateToBitTimingParameters.argtypes = [
+            ctypes.c_uint32,                            # ulBaudrate
+            ctypes.POINTER(DSSCanBitTimingParameters),  # ptBitTimingParameters (out)
+        ]
+        dll.DSCAN_ConvertBaudrateToBitTimingParameters.restype = ctypes.c_int32
+
+        dll.DSCAN_SetBaudrate.argtypes = [
+            ctypes.c_int32,                             # tHandle
+            ctypes.POINTER(DSSCanBitTimingParameters),  # ptBitTimingParameters
+            ctypes.POINTER(DSSCanBitTimingParameters),  # ptBitTimingParameters_FD (nullable)
+        ]
+        dll.DSCAN_SetBaudrate.restype = ctypes.c_int32
 
         # --- Activation ---
         dll.DSCAN_ActivateChannel.argtypes = [ctypes.c_int32]
@@ -366,7 +380,7 @@ class DsCanApi:
         handle: int,
         identifier_type: int = DSCAN_IDENTIFIER_TYPE_STD_XTD,
         rx_queue_size: int = 1024,
-        exclusive: bool = False,
+        fd: bool = False,
     ) -> bool:
         """Initialize a CAN channel and request access permission.
 
@@ -374,14 +388,14 @@ class DsCanApi:
             handle: Channel handle from register_channel().
             identifier_type: DSCAN_IDENTIFIER_TYPE_STD, _XTD, or _STD_XTD.
             rx_queue_size: Receive queue size (max 32768).
-            exclusive: If True, request exclusive access.
+            fd: If True, enable CAN FD support on this channel.
 
         Returns:
             True if access permission was granted.
         """
         access_perm = ctypes.c_bool(False)
         err = self._dll.DSCAN_InitChannel(
-            handle, identifier_type, rx_queue_size, exclusive, ctypes.byref(access_perm)
+            handle, identifier_type, rx_queue_size, fd, ctypes.byref(access_perm)
         )
         self._check("DSCAN_InitChannel", err)
         return access_perm.value
@@ -523,6 +537,7 @@ class DsCanApi:
         can_id: int,
         data: bytes,
         flags: int = 0,
+        extended: bool = False,
     ):
         """Transmit a single CAN message.
 
@@ -530,14 +545,22 @@ class DsCanApi:
             handle: Channel handle.
             can_id: CAN message identifier.
             data: Payload bytes (max 8 for classic CAN, 64 for CAN FD).
-            flags: TX flags bitmask (e.g. DSCAN_MSG_TX_FLAG_XTD).
+            flags: TX flags bitmask (DSCAN_TX_MESSAGE_FLAG_xxx).
+            extended: If True, use 29-bit extended CAN identifier.
         """
+        from .constants import (
+            DSCAN_MESSAGE_TYPE_DATA,
+            DSCAN_IDENTIFIER_TYPE_STD,
+            DSCAN_IDENTIFIER_TYPE_XTD,
+        )
         msg = DSSCanMessage()
-        msg.ulIdentifier = can_id
-        msg.usFlags = flags
-        msg.ucDlc = len(data)
+        msg.tMessageType = DSCAN_MESSAGE_TYPE_DATA
+        msg.ulCanIdentifier = can_id
+        msg.tCanIdentifierType = DSCAN_IDENTIFIER_TYPE_XTD if extended else DSCAN_IDENTIFIER_TYPE_STD
+        msg.ulFlags = flags
+        msg.usDLC = len(data)
         for i, b in enumerate(data):
-            msg.abData[i] = b
+            msg.ucData[i] = b
 
         count = ctypes.c_uint32(1)
         err = self._dll.DSCAN_TransmitMessages(handle, ctypes.byref(count), ctypes.byref(msg))

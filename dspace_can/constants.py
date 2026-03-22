@@ -67,9 +67,23 @@ DSCAN_CHANNEL_CAPABILITY_HIGH_SPEED_CONNECTION = 0x00000100
 DSCAN_SEARCH_ATTRIBUTE_TYPE_IP_V4_ADDRESS = 1
 
 # DSECanIdentifierType
-DSCAN_IDENTIFIER_TYPE_STD = 0       # 11-bit standard identifiers only
-DSCAN_IDENTIFIER_TYPE_XTD = 1       # 29-bit extended identifiers only
-DSCAN_IDENTIFIER_TYPE_STD_XTD = 2   # both standard and extended
+DSCAN_IDENTIFIER_TYPE_STD = 0x01       # 11-bit standard identifiers only
+DSCAN_IDENTIFIER_TYPE_XTD = 0x02       # 29-bit extended identifiers only
+DSCAN_IDENTIFIER_TYPE_STD_XTD = 0x03   # both standard and extended
+
+# DSECanMessageType
+DSCAN_MESSAGE_TYPE_DATA = 1
+DSCAN_MESSAGE_TYPE_REMOTE = 2
+DSCAN_MESSAGE_TYPE_ERROR = 3
+DSCAN_MESSAGE_TYPE_BUS_INFO = 4
+DSCAN_MESSAGE_TYPE_BUS_STATISTICS = 5
+
+# DSECanBusStatus
+DSCAN_BUS_STATUS_UNKNOWN = 0
+DSCAN_BUS_STATUS_ACTIVE = 1
+DSCAN_BUS_STATUS_PASSIVE = 2
+DSCAN_BUS_STATUS_WARNING = 3
+DSCAN_BUS_STATUS_BUS_OFF = 4
 
 # DSECanChannelOutputMode
 DSCAN_CHANNEL_OUTPUT_NORMAL = 0
@@ -96,21 +110,18 @@ DSCAN_BAUD_FD_8M = 8_000_000
 DSCAN_ACCEPTANCE_ALL = 0x00000000  # accept all messages
 DSCAN_ACCEPTANCE_NONE = 0xFFFFFFFF  # reject all messages
 
-# ---------- TX flags ----------
-DSCAN_MSG_TX_FLAG_NONE = 0x0000
-DSCAN_MSG_TX_FLAG_XTD = 0x0001       # extended (29-bit) identifier
-DSCAN_MSG_TX_FLAG_RTR = 0x0002       # remote transmit request
-DSCAN_MSG_TX_FLAG_FD = 0x0004        # CAN FD frame
-DSCAN_MSG_TX_FLAG_BRS = 0x0008       # bit rate switch (CAN FD)
+# ---------- TX flags (ulFlags in DSSCanMessage for DSCAN_TransmitMessages) ----------
+DSCAN_TX_MESSAGE_FLAG_FD = 0x00000001             # transmit CAN FD message
+DSCAN_TX_MESSAGE_FLAG_FD_BAUDRATE_SWITCH = 0x00000002  # CAN FD with baud rate switch
 
-# ---------- RX flags ----------
-DSCAN_MSG_RX_FLAG_NONE = 0x0000
-DSCAN_MSG_RX_FLAG_XTD = 0x0001
-DSCAN_MSG_RX_FLAG_RTR = 0x0002
-DSCAN_MSG_RX_FLAG_FD = 0x0004
-DSCAN_MSG_RX_FLAG_BRS = 0x0008
-DSCAN_MSG_RX_FLAG_ESI = 0x0010       # error state indicator
-DSCAN_MSG_RX_FLAG_TX = 0x0020        # TX acknowledge
+# ---------- RX flags (ulFlags in DSSCanMessage for DSCAN_ReadReceiveQueue) ----------
+DSCAN_RX_MESSAGE_FLAG_TX_ACKNOWLEDGE = 0x00000001       # transmitted by same handle
+DSCAN_RX_MESSAGE_FLAG_CTRL_TX_LOOPBACK = 0x00000002     # transmitted by same controller
+DSCAN_RX_MESSAGE_FLAG_FD = 0x00000100                   # CAN FD message
+DSCAN_RX_MESSAGE_FLAG_FD_BAUDRATE_SWITCH = 0x00000200   # CAN FD with baud rate switch
+DSCAN_RX_MESSAGE_FLAG_RX_BUFFER_OVERRUN = 0x00010000    # vendor API buffer overrun
+DSCAN_RX_MESSAGE_FLAG_HW_RX_BUFFER_OVERRUN = 0x00020000 # CAN controller buffer overrun
+DSCAN_RX_MESSAGE_FLAG_FD_ERROR_STATE_INDICATOR = 0x00040000  # CAN FD ESI
 
 # ---------- Error codes ----------
 DSCAN_ERR_NO_ERROR = 0

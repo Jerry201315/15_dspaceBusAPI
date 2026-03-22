@@ -5,14 +5,20 @@ import time
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent))
 
 from dspace_can import DsCanApi
-from dspace_can.constants import DSCAN_BAUD_500K
+from dspace_can.constants import (
+    DSCAN_BAUD_500K,
+    DSCAN_IDENTIFIER_TYPE_XTD,
+    DSCAN_MESSAGE_TYPE_REMOTE,
+    DSCAN_RX_MESSAGE_FLAG_TX_ACKNOWLEDGE,
+    DSCAN_RX_MESSAGE_FLAG_FD,
+)
 
 def format_can_message(msg) -> str:
     """Format a CAN message for display using dSPACE Bus API structures."""
-    is_xtd = (msg.tCanIdentifierType == 2)
-    is_rtr = (msg.tMessageType == 2)
-    is_fd = bool(msg.ulFlags & 0x0100)
-    is_tx_ack = bool(msg.ulFlags & 0x0001)
+    is_xtd = (msg.tCanIdentifierType == DSCAN_IDENTIFIER_TYPE_XTD)
+    is_rtr = (msg.tMessageType == DSCAN_MESSAGE_TYPE_REMOTE)
+    is_fd = bool(msg.ulFlags & DSCAN_RX_MESSAGE_FLAG_FD)
+    is_tx_ack = bool(msg.ulFlags & DSCAN_RX_MESSAGE_FLAG_TX_ACKNOWLEDGE)
 
     id_fmt = f"0x{msg.ulCanIdentifier:08X}" if is_xtd else f"0x{msg.ulCanIdentifier:03X}"
     flags_parts = []
