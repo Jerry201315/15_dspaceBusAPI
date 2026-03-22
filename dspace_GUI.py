@@ -95,8 +95,8 @@ class DSpaceGUI:
             'sample_no': '',
             'backend_api_url': 'https://gemini-dash.jlr-apps.com/api',
             'api_token': '03578a8686b5fc6007a6e5266f841756bcd58541',
-            'auto_upload_blf': False,
-            'blf_save_interval': 240,
+            'auto_upload_blf': True,
+            'blf_save_interval': 60,
             # CAN Streaming settings
             'stream_rig_id': 'vib1_horizontal',
             'stream_scalexio_ip': '192.168.0.10',
@@ -136,8 +136,8 @@ class DSpaceGUI:
         self.test_setup_var = tk.StringVar(value=self.settings.get('test_setup', ''))
         self.sample_no_var = tk.StringVar(value=self.settings.get('sample_no', ''))
         self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', '') or 'https://gemini-dash.jlr-apps.com/api')
-        self.auto_upload_blf_var = tk.BooleanVar(value=self.settings.get('auto_upload_blf', False))
-        self.blf_save_interval_var = tk.StringVar(value=str(self.settings.get('blf_save_interval', 240)))
+        self.auto_upload_blf_var = tk.BooleanVar(value=self.settings.get('auto_upload_blf', True))
+        self.blf_save_interval_var = tk.StringVar(value=str(self.settings.get('blf_save_interval', 60)))
 
         self.always_on_top = tk.BooleanVar(value=True) # Assuming default is True
         self.edit_paths_var = tk.BooleanVar(value=False)
@@ -437,7 +437,7 @@ class DSpaceGUI:
 
         self.blf_interval_combo = ttk.Combobox(
             self.bus_record_frame, textvariable=self.blf_save_interval_var,
-            values=["30", "60", "90", "120", "240"], state="readonly", width=5
+            values=["3", "30", "60", "90", "120", "240"], state="readonly", width=5
         )
         self.blf_interval_combo.grid(row=0, column=7, padx=5, pady=5)
 
@@ -603,24 +603,6 @@ class DSpaceGUI:
 
         row += 1
 
-        # --- Pub/Sub Configuration ---
-        pubsub_frame = ttk.LabelFrame(self.can_stream_frame, text="Google Cloud Pub/Sub", padding="10")
-        pubsub_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
-        pubsub_frame.columnconfigure(1, weight=1)
-
-        ttk.Label(pubsub_frame, text="GCP Project:").grid(row=0, column=0, padx=5, pady=3, sticky=tk.W)
-        ttk.Entry(pubsub_frame, textvariable=self.stream_pubsub_project_var, width=35).grid(row=0, column=1, padx=5, pady=3, sticky=tk.W)
-
-        ttk.Label(pubsub_frame, text="Pub/Sub Topic:").grid(row=1, column=0, padx=5, pady=3, sticky=tk.W)
-        ttk.Entry(pubsub_frame, textvariable=self.stream_pubsub_topic_var, width=35).grid(row=1, column=1, padx=5, pady=3, sticky=tk.W)
-
-        pubsub_status = "Available" if PUBSUB_AVAILABLE else "Not installed (pip install google-cloud-pubsub)"
-        pubsub_color = "green" if PUBSUB_AVAILABLE else "orange"
-        self.stream_pubsub_status = ttk.Label(pubsub_frame, text=f"Status: {pubsub_status}", foreground=pubsub_color)
-        self.stream_pubsub_status.grid(row=2, column=0, columnspan=2, padx=5, pady=3, sticky=tk.W)
-
-        row += 1
-
         # --- Streaming Control ---
         control_frame = ttk.LabelFrame(self.can_stream_frame, text="Streaming Control", padding="10")
         control_frame.grid(row=row, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
@@ -648,11 +630,19 @@ class DSpaceGUI:
         self.stream_overrun_label = ttk.Label(stats_frame, text="0", width=8)
         self.stream_overrun_label.pack(side=tk.LEFT, padx=5)
 
-        # Recording indicator
+        # Recording override + indicator
         rec_frame = ttk.Frame(control_frame)
         rec_frame.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=3)
-        ttk.Label(rec_frame, text="BigQuery Recording:").pack(side=tk.LEFT, padx=5)
-        self.stream_recording_label = ttk.Label(rec_frame, text="OFF (12V not detected)", foreground="gray")
+
+        self.stream_override_var = tk.BooleanVar(value=False)
+        self.stream_override_btn = ttk.Checkbutton(
+            rec_frame, text="Override 12V (always record)",
+            variable=self.stream_override_var, command=self._stream_override_changed)
+        self.stream_override_btn.pack(side=tk.LEFT, padx=5)
+
+        ttk.Label(rec_frame, text="BigQuery:").pack(side=tk.LEFT, padx=(15, 5))
+        self.stream_recording_label = ttk.Label(rec_frame, text="OFF", foreground="gray",
+                                                font=("Helvetica", 10, "bold"))
         self.stream_recording_label.pack(side=tk.LEFT, padx=5)
 
     def _stream_discover_channels(self):
@@ -725,11 +715,10 @@ class DSpaceGUI:
         self.stream_manager.rig_id = self.stream_rig_id_var.get().strip()
         self.stream_manager.batpack_id = self.batpack_id.get()
 
-        # Setup Pub/Sub
-        project = self.stream_pubsub_project_var.get().strip()
-        topic = self.stream_pubsub_topic_var.get().strip()
-        if project and topic:
-            self.stream_manager.setup_pubsub(project, topic)
+        # Setup Pub/Sub (uses settings, not shown in UI)
+        project = self.settings.get('stream_pubsub_project', 'jlr-eng-ftd-tool-prod')
+        topic = self.settings.get('stream_pubsub_topic', 'sbtl-can-stream')
+        self.stream_manager.setup_pubsub(project, topic)
 
         # Save settings
         self._save_stream_settings()
@@ -768,14 +757,30 @@ class DSpaceGUI:
         overrun_color = "red" if overruns > 0 else "black"
         self.stream_overrun_label.config(text=str(overruns), foreground=overrun_color)
 
-        # Update recording state from ControlDesk 12V status
+        # Update recording state: override > 12V
         if self.stream_manager:
-            is_recording = self.vbatt_state.get()
+            if self.stream_override_var.get():
+                is_recording = True
+            else:
+                is_recording = self.vbatt_state.get()
             self.stream_manager.set_recording(is_recording)
             if is_recording:
-                self.stream_recording_label.config(text="ON — saving to BigQuery", foreground="green")
+                src = "override" if self.stream_override_var.get() else "12V ON"
+                self.stream_recording_label.config(text=f"ON ({src})", foreground="green")
             else:
-                self.stream_recording_label.config(text="OFF — live stream only", foreground="gray")
+                self.stream_recording_label.config(text="OFF", foreground="gray")
+
+    def _stream_override_changed(self):
+        """Handle recording override checkbox toggle."""
+        if self.stream_manager:
+            if self.stream_override_var.get():
+                self.stream_manager.set_recording(True)
+                self.stream_recording_label.config(text="ON (override)", foreground="green")
+                self.log_message("[CAN Stream] Recording override enabled — always saving to BigQuery")
+            else:
+                is_12v = self.vbatt_state.get()
+                self.stream_manager.set_recording(is_12v)
+                self.log_message("[CAN Stream] Recording override disabled — using 12V state")
 
     def _save_stream_settings(self):
         """Persist CAN streaming settings."""
@@ -1956,7 +1961,7 @@ class DSpaceGUI:
 
             # Apply GCS upload and BLF interval settings
             if hasattr(self, 'blf_save_interval_var'):
-                self.blf_save_interval_var.set(str(self.settings.get('blf_save_interval', 240)))
+                self.blf_save_interval_var.set(str(self.settings.get('blf_save_interval', 60)))
             if hasattr(self, 'test_name_var'):
                 self.test_name_var.set(self.settings.get('test_name', ''))
             if hasattr(self, 'ddg_environment_var'):
@@ -1968,7 +1973,7 @@ class DSpaceGUI:
             if hasattr(self, 'backend_api_url_var'):
                 self.backend_api_url_var.set(self.settings.get('backend_api_url', ''))
             if hasattr(self, 'auto_upload_blf_var'):
-                self.auto_upload_blf_var.set(self.settings.get('auto_upload_blf', False))
+                self.auto_upload_blf_var.set(self.settings.get('auto_upload_blf', True))
 
             self.safe_log_message("Settings applied to UI elements")
 
