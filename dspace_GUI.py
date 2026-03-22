@@ -630,13 +630,14 @@ class DSpaceGUI:
         rec_frame = ttk.Frame(control_frame)
         rec_frame.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=3)
 
-        self.stream_override_var = tk.BooleanVar(value=False)
-        self.stream_override_btn = ttk.Checkbutton(
-            rec_frame, text="Override 12V (always record)",
-            variable=self.stream_override_var, command=self._stream_override_changed)
-        self.stream_override_btn.pack(side=tk.LEFT, padx=5)
-
-        ttk.Label(rec_frame, text="Cloud Saving:").pack(side=tk.LEFT, padx=(15, 5))
+        ttk.Label(rec_frame, text="Cloud Saving:").pack(side=tk.LEFT, padx=5)
+        self.stream_record_mode_var = tk.StringVar(value="Auto (12V)")
+        self.stream_record_mode_combo = ttk.Combobox(
+            rec_frame, textvariable=self.stream_record_mode_var,
+            values=["Auto (12V)", "Always Save to Cloud", "Disabled"],
+            state="readonly", width=14)
+        self.stream_record_mode_combo.pack(side=tk.LEFT, padx=5)
+        self.stream_record_mode_combo.bind("<<ComboboxSelected>>", self._stream_record_mode_changed)
         self.stream_recording_label = ttk.Label(rec_frame, text="OFF", foreground="gray",
                                                 font=("Helvetica", 10, "bold"))
         self.stream_recording_label.pack(side=tk.LEFT, padx=5)
@@ -756,34 +757,46 @@ class DSpaceGUI:
         else:
             self.stream_overrun_label.config(text="")
 
-        # Update recording state: override > 12V
+        # Update recording state based on mode
         if self.stream_manager:
-            if self.stream_override_var.get():
+            mode = self.stream_record_mode_var.get()
+            if mode == "Always Save to Cloud":
                 is_recording = True
-            else:
+            elif mode == "Disabled":
+                is_recording = False
+            else:  # Auto (12V)
                 is_recording = self.vbatt_state.get()
             self.stream_manager.set_recording(is_recording)
-            if is_recording:
-                src = "override" if self.stream_override_var.get() else "12V ON"
-                self.stream_recording_label.config(text=f"ON ({src})", foreground="green")
+            self._update_cloud_saving_label(is_recording, mode)
+
+    def _update_cloud_saving_label(self, is_recording, mode):
+        """Update the cloud saving status label."""
+        if is_recording:
+            if mode == "Always Save to Cloud":
+                self.stream_recording_label.config(text="ON (always)", foreground="green")
+            else:
+                self.stream_recording_label.config(text="ON (12V)", foreground="green")
+        else:
+            if mode == "Disabled":
+                self.stream_recording_label.config(text="OFF (disabled)", foreground="red")
             else:
                 self.stream_recording_label.config(text="OFF", foreground="gray")
 
-    def _stream_override_changed(self):
-        """Handle recording override checkbox toggle."""
+    def _stream_record_mode_changed(self, event=None):
+        """Handle cloud saving mode change."""
+        mode = self.stream_record_mode_var.get()
         if self.stream_manager:
-            if self.stream_override_var.get():
+            if mode == "Always Save to Cloud":
                 self.stream_manager.set_recording(True)
-                self.stream_recording_label.config(text="ON (override)", foreground="green")
-                self.log_message("[CAN Stream] Recording override enabled — always saving to BigQuery")
+                self.log_message("[CAN Stream] Cloud saving: always save to cloud (12V ignored)")
+            elif mode == "Disabled":
+                self.stream_manager.set_recording(False)
+                self.log_message("[CAN Stream] Cloud saving: disabled (12V ignored)")
             else:
                 is_12v = self.vbatt_state.get()
                 self.stream_manager.set_recording(is_12v)
-                if is_12v:
-                    self.stream_recording_label.config(text="ON (12V ON)", foreground="green")
-                else:
-                    self.stream_recording_label.config(text="OFF", foreground="gray")
-                self.log_message("[CAN Stream] Recording override disabled — using 12V state")
+                self.log_message("[CAN Stream] Cloud saving: auto (following 12V state)")
+            self._update_cloud_saving_label(self.stream_manager._recording, mode)
 
     def _save_stream_settings(self):
         """Persist CAN streaming settings."""
