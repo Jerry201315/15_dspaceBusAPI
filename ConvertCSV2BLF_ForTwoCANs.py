@@ -12,7 +12,6 @@ try:
     DASK_AVAILABLE = True
 except ImportError:
     DASK_AVAILABLE = False
-    warnings.warn("Dask not available. Install with 'pip install dask[complete]' for multi-core processing.")
 
 # --- Configuration ---
 # DEBUG = False # Removed global flag

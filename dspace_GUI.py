@@ -6,11 +6,16 @@ from datetime import datetime
 import os
 import threading
 import json
-import re # Import re for filename manipulation
-import multiprocessing # <-- ADD THIS IMPORT
-import pywintypes # <-- ADD THIS IMPORT
-import shutil # <-- ADD THIS IMPORT
+import re
+import multiprocessing
+import pywintypes
+import shutil
+import warnings
 from PIL import Image, ImageTk
+
+# Suppress SSL verification warnings (HiL PCs use internal IPs)
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Import the conversion function
 # Files been used related to this GUI
@@ -1190,6 +1195,11 @@ class DSpaceGUI:
 
                     merged_settings = default_settings.copy()
                     merged_settings.update(loaded_settings)
+
+                    # Migrate: replace external URL with internal IP
+                    url = merged_settings.get('backend_api_url', '')
+                    if not url or 'jlr-apps.com' in url:
+                        merged_settings['backend_api_url'] = 'http://10.226.38.100'
 
                     self.safe_log_message("Settings loaded successfully")
                     return merged_settings
