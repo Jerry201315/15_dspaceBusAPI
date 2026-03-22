@@ -1024,6 +1024,9 @@ def upload_blf_to_gcs(blf_file_path, test_name, test_setup='', sample_no='',
                 headers = {}
                 if auth_token:
                     headers['Authorization'] = f'Token {auth_token}'
+                    log(f"Using API token: {auth_token[:8]}...")
+                else:
+                    log("WARNING: No API token available for backend registration")
 
                 # If start/end times not provided, try to parse from filename
                 _start = start_time
