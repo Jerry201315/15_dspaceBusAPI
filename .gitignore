@@ -36,6 +36,10 @@ desktop.ini
 # Logs
 *.log
 
+# Service account keys
+*.json
+!dspace_settings.json
+
 # Distribution / packaging
 *.tar.gz
 *.zip
