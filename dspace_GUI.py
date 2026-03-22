@@ -779,6 +779,10 @@ class DSpaceGUI:
             else:
                 is_12v = self.vbatt_state.get()
                 self.stream_manager.set_recording(is_12v)
+                if is_12v:
+                    self.stream_recording_label.config(text="ON (12V ON)", foreground="green")
+                else:
+                    self.stream_recording_label.config(text="OFF", foreground="gray")
                 self.log_message("[CAN Stream] Recording override disabled — using 12V state")
 
     def _save_stream_settings(self):
