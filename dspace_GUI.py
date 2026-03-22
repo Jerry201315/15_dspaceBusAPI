@@ -2523,8 +2523,8 @@ class DSpaceGUI:
         """Fetch SBTL test list from backend API and populate dropdown."""
         api_url = self.backend_api_url_var.get()
         if not api_url:
-            messagebox.showwarning("Warning", "Backend API URL is not set")
-            return
+            api_url = 'http://10.226.38.100'
+            self.backend_api_url_var.set(api_url)
         try:
             import requests
             token = os.environ.get('DDG_API_TOKEN', '')
