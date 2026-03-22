@@ -94,6 +94,7 @@ class DSpaceGUI:
             'test_setup': '',
             'sample_no': '',
             'backend_api_url': 'http://10.226.38.100/api',
+            'api_token': '',
             'auto_upload_blf': False,
             'blf_save_interval': 240,
             # CAN Streaming settings
@@ -2537,8 +2538,11 @@ class DSpaceGUI:
             self.backend_api_url_var.set(api_url)
         try:
             import requests
-            token = os.environ.get('DDG_API_TOKEN', '')
-            headers = {'Authorization': f'Token {token}'} if token else {}
+            token = self.settings.get('api_token', '') or os.environ.get('DDG_API_TOKEN', '')
+            if not token:
+                messagebox.showwarning("Warning", "API token not set.\n\nSet 'api_token' in dspace_settings.json\nor DDG_API_TOKEN environment variable.")
+                return
+            headers = {'Authorization': f'Token {token}'}
             resp = requests.get(f"{api_url}/sbtl/tests/", headers=headers, timeout=10, verify=False)
             resp.raise_for_status()
             tests = resp.json()
