@@ -103,6 +103,7 @@ class BusRecorder:
                             'battery_pack_id': self.batpack_id,
                             'start_time': start_time_unix,
                             'end_time': stop_time_unix,
+                            'api_token': getattr(self, 'api_token', ''),
                         },
                         daemon=False,
                     )

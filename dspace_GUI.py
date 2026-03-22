@@ -978,7 +978,8 @@ class DSpaceGUI:
                 self.controldesk.sample_no = self.sample_no_var.get()
                 self.controldesk.ddg_environment = self.ddg_environment_var.get()
                 self.controldesk.backend_api_url = self.backend_api_url_var.get()
-                    
+                self.controldesk.api_token = self.settings.get('api_token', '')
+
                 # *** Check and update initial VBatt state ***
                 self._check_and_update_initial_vbatt_state()
                 
@@ -1844,6 +1845,7 @@ class DSpaceGUI:
                     self.controldesk.bus_recorder.sample_no = self.sample_no_var.get()
                     self.controldesk.bus_recorder.ddg_environment = self.ddg_environment_var.get()
                     self.controldesk.bus_recorder.backend_api_url = self.backend_api_url_var.get()
+                    self.controldesk.bus_recorder.api_token = self.settings.get('api_token', '')
                 # Call Bus_record, assuming it handles its own state updates via callback
                 self.controldesk.Bus_record(batpack_id, update_callback=self.update_realtime_values)
                 # Note: Bus_record might block or run indefinitely if not designed carefully

@@ -938,7 +938,8 @@ def _parse_timestamps_from_filename(file_name):
 
 def upload_blf_to_gcs(blf_file_path, test_name, test_setup='', sample_no='',
                       environment='dev', backend_api_url='', log_callback=None,
-                      battery_pack_id='', start_time=None, end_time=None):
+                      battery_pack_id='', start_time=None, end_time=None,
+                      api_token=''):
     """
     Upload a generated BLF file to GCS and register it with the backend.
 
@@ -1011,8 +1012,8 @@ def upload_blf_to_gcs(blf_file_path, test_name, test_setup='', sample_no='',
                 import requests
                 register_url = f"{backend_api_url}/sbtl/tests/{test_name}/blf-files/register/"
 
-                # Get auth token from environment
-                auth_token = os.environ.get('DDG_API_TOKEN', '')
+                # Get auth token from parameter or environment
+                auth_token = api_token or os.environ.get('DDG_API_TOKEN', '')
                 headers = {}
                 if auth_token:
                     headers['Authorization'] = f'Token {auth_token}'
