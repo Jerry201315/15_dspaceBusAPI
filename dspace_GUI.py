@@ -129,7 +129,7 @@ class DSpaceGUI:
         self.ddg_environment_var = tk.StringVar(value=self.settings.get('ddg_environment', 'dev'))
         self.test_setup_var = tk.StringVar(value=self.settings.get('test_setup', ''))
         self.sample_no_var = tk.StringVar(value=self.settings.get('sample_no', ''))
-        self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', ''))
+        self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', '') or 'http://10.226.38.100')
         self.auto_upload_blf_var = tk.BooleanVar(value=self.settings.get('auto_upload_blf', False))
         self.blf_save_interval_var = tk.StringVar(value=str(self.settings.get('blf_save_interval', 240)))
 
