@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<BusAccess>
+    <LocationInfo Version="1.0">
+        <Value>C:\Program Files\Common Files\dSPACE\dSPACE Bus API\2025-B\BusAPI\bin</Value>
+        <Value>/opt/dspace/busapi2025b/busapi/bin</Value>
+    </LocationInfo>
+</BusAccess>

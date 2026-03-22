@@ -95,7 +95,7 @@ DSCAN_DeactivateChannel  →  DSCAN_UnregisterChannel
 
 ## Development Notes
 
-- **Dev machine**: macOS (code editing only — DLL won't load here)
+
 - **Test machine**: Win11 with SCALEXIO hardware
 - The wrapper uses only Python standard library (`ctypes`) — no pip dependencies
 - All dSPACE API error codes are translated into Python exceptions (`DsCanError`)

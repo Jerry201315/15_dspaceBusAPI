@@ -173,19 +173,22 @@ class DsCanApi:
         ]
         dll.DSCAN_InitChannel.restype = ctypes.c_int32
 
-        dll.DSCAN_SetBaudrate.argtypes = [
-            ctypes.c_int32,                           # tHandle
-            ctypes.POINTER(DSSCanBitTimingParameters), # ptBitTimingParameters
-            ctypes.POINTER(DSSCanBitTimingParameters), # ptBitTimingParametersFD (can be NULL)
-        ]
-        dll.DSCAN_SetBaudrate.restype = ctypes.c_int32
-
+    # --- Baud rate functions ---
         dll.DSCAN_GetBaudrate.argtypes = [
-            ctypes.c_int32,
-            ctypes.POINTER(DSSCanBitTimingParameters),
-            ctypes.POINTER(DSSCanBitTimingParameters),
+            ctypes.c_int32,                             # tHandle
+            ctypes.POINTER(ctypes.c_uint32),            # pulClockFrequency
+            ctypes.POINTER(DSSCanBitTimingParameters),  # ptBitTimingParameters
+            ctypes.POINTER(ctypes.c_bool),              # pbFD
+            ctypes.POINTER(DSSCanBitTimingParameters),  # ptBitTimingParameters_FD
         ]
         dll.DSCAN_GetBaudrate.restype = ctypes.c_int32
+
+        dll.DSCAN_ConvertBitTimingParametersToBaudrate.argtypes = [
+            ctypes.c_uint32,                            # ulClockFrequency
+            ctypes.POINTER(DSSCanBitTimingParameters),  # ptBitTimingParameters
+            ctypes.POINTER(ctypes.c_uint32),            # pulBaudrate
+        ]
+        dll.DSCAN_ConvertBitTimingParametersToBaudrate.restype = ctypes.c_int32
 
         # --- Activation ---
         dll.DSCAN_ActivateChannel.argtypes = [ctypes.c_int32]
@@ -235,11 +238,13 @@ class DsCanApi:
         dll.DSCAN_GetErrorText.restype = ctypes.c_int32
 
         # --- Acceptance filter ---
+# --- Acceptance filter ---
         dll.DSCAN_SetAcceptance.argtypes = [
             ctypes.c_int32,   # tHandle
-            ctypes.c_uint32,  # ulAcceptanceCode
-            ctypes.c_uint32,  # ulAcceptanceMask
-            ctypes.c_int32,   # tIdentifierType
+            ctypes.c_uint32,  # ulStandardCanIdentifiersCode
+            ctypes.c_uint32,  # ulStandardCanIdentifiersMask
+            ctypes.c_uint32,  # ulExtendedCanIdentifiersCode
+            ctypes.c_uint32,  # ulExtendedCanIdentifiersMask
         ]
         dll.DSCAN_SetAcceptance.restype = ctypes.c_int32
 
@@ -412,6 +417,34 @@ class DsCanApi:
         )
         self._check("DSCAN_SetBaudrate", err)
 
+    def get_baudrate(self, handle: int) -> int:
+        """Read the current physical baud rate configured on the hardware."""
+        clock_freq = ctypes.c_uint32(0)
+        btp = DSSCanBitTimingParameters()
+        is_fd = ctypes.c_bool(False)
+        btp_fd = DSSCanBitTimingParameters()
+
+        # 1. Ask the hardware for its raw timing parameters
+        err = self._dll.DSCAN_GetBaudrate(
+            handle, 
+            ctypes.byref(clock_freq), 
+            ctypes.byref(btp), 
+            ctypes.byref(is_fd), 
+            ctypes.byref(btp_fd)
+        )
+        self._check("DSCAN_GetBaudrate", err)
+
+        # 2. Convert the raw parameters into a readable integer (e.g., 500000)
+        baudrate = ctypes.c_uint32(0)
+        err = self._dll.DSCAN_ConvertBitTimingParametersToBaudrate(
+            clock_freq.value, 
+            ctypes.byref(btp), 
+            ctypes.byref(baudrate)
+        )
+        self._check("DSCAN_ConvertBitTimingParametersToBaudrate", err)
+
+        return baudrate.value
+
     def activate_channel(self, handle: int):
         """Activate a CAN channel so it can send/receive messages."""
         err = self._dll.DSCAN_ActivateChannel(handle)
@@ -422,6 +455,28 @@ class DsCanApi:
         err = self._dll.DSCAN_DeactivateChannel(handle)
         self._check("DSCAN_DeactivateChannel", err)
 
+    def set_acceptance(
+            self, 
+            handle: int, 
+            std_code: int = 0, 
+            std_mask: int = 0, 
+            xtd_code: int = 0, 
+            xtd_mask: int = 0
+        ):
+            """Sets the acceptance filter to allow specific CAN IDs. 0 means allow all."""
+            err = self._dll.DSCAN_SetAcceptance(
+                handle, 
+                std_code, 
+                std_mask, 
+                xtd_code, 
+                xtd_mask
+            )
+            self._check("DSCAN_SetAcceptance", err)
+    
+    def set_transmit_acknowledge(self, handle: int, enable: bool):
+        """Allows the receive queue to see messages transmitted by this same CAN node."""
+        err = self._dll.DSCAN_SetTransmitAcknowledge(handle, enable)
+        self._check("DSCAN_SetTransmitAcknowledge", err)
     # ------------------------------------------------------------------ #
     # Reading messages
     # ------------------------------------------------------------------ #
