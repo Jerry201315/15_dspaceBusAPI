@@ -93,7 +93,7 @@ class DSpaceGUI:
             'ddg_environment': 'dev',
             'test_setup': '',
             'sample_no': '',
-            'backend_api_url': 'http://10.226.38.100',
+            'backend_api_url': 'http://10.226.38.100/api',
             'auto_upload_blf': False,
             'blf_save_interval': 240,
             # CAN Streaming settings
@@ -134,7 +134,7 @@ class DSpaceGUI:
         self.ddg_environment_var = tk.StringVar(value=self.settings.get('ddg_environment', 'dev'))
         self.test_setup_var = tk.StringVar(value=self.settings.get('test_setup', ''))
         self.sample_no_var = tk.StringVar(value=self.settings.get('sample_no', ''))
-        self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', '') or 'http://10.226.38.100')
+        self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', '') or 'http://10.226.38.100/api')
         self.auto_upload_blf_var = tk.BooleanVar(value=self.settings.get('auto_upload_blf', False))
         self.blf_save_interval_var = tk.StringVar(value=str(self.settings.get('blf_save_interval', 240)))
 
@@ -1199,7 +1199,7 @@ class DSpaceGUI:
                     # Migrate: replace external URL with internal IP
                     url = merged_settings.get('backend_api_url', '')
                     if not url or 'jlr-apps.com' in url:
-                        merged_settings['backend_api_url'] = 'http://10.226.38.100'
+                        merged_settings['backend_api_url'] = 'http://10.226.38.100/api'
 
                     self.safe_log_message("Settings loaded successfully")
                     return merged_settings
@@ -2533,7 +2533,7 @@ class DSpaceGUI:
         """Fetch SBTL test list from backend API and populate dropdown."""
         api_url = self.backend_api_url_var.get()
         if not api_url:
-            api_url = 'http://10.226.38.100'
+            api_url = 'http://10.226.38.100/api'
             self.backend_api_url_var.set(api_url)
         try:
             import requests
