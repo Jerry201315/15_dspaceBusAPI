@@ -347,6 +347,7 @@ class BusRecorder:
     def _upload_with_logging(self, blf_fp, **kwargs):
         """Wrapper around upload_blf_to_gcs that logs success/failure."""
         try:
+            from ConvertCSV2BLF_ForTwoCANs import upload_blf_to_gcs
             success = upload_blf_to_gcs(
                 blf_file_path=blf_fp,
                 log_callback=self.log_message,
