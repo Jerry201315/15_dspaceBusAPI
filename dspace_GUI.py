@@ -622,13 +622,9 @@ class DSpaceGUI:
         self.stream_rate_label = ttk.Label(stats_frame, text="0 msg/s", width=12)
         self.stream_rate_label.pack(side=tk.LEFT, padx=5)
 
-        ttk.Label(stats_frame, text="Total:").pack(side=tk.LEFT, padx=5)
-        self.stream_total_label = ttk.Label(stats_frame, text="0", width=12)
-        self.stream_total_label.pack(side=tk.LEFT, padx=5)
-
-        ttk.Label(stats_frame, text="Overruns:").pack(side=tk.LEFT, padx=5)
-        self.stream_overrun_label = ttk.Label(stats_frame, text="0", width=8)
-        self.stream_overrun_label.pack(side=tk.LEFT, padx=5)
+        # Overrun warning (hidden unless overruns occur)
+        self.stream_overrun_label = ttk.Label(stats_frame, text="", foreground="red")
+        self.stream_overrun_label.pack(side=tk.LEFT, padx=10)
 
         # Recording override + indicator
         rec_frame = ttk.Frame(control_frame)
@@ -640,7 +636,7 @@ class DSpaceGUI:
             variable=self.stream_override_var, command=self._stream_override_changed)
         self.stream_override_btn.pack(side=tk.LEFT, padx=5)
 
-        ttk.Label(rec_frame, text="BigQuery:").pack(side=tk.LEFT, padx=(15, 5))
+        ttk.Label(rec_frame, text="Cloud Saving:").pack(side=tk.LEFT, padx=(15, 5))
         self.stream_recording_label = ttk.Label(rec_frame, text="OFF", foreground="gray",
                                                 font=("Helvetica", 10, "bold"))
         self.stream_recording_label.pack(side=tk.LEFT, padx=5)
@@ -753,9 +749,12 @@ class DSpaceGUI:
     def _stream_update_labels(self, msg_per_sec, total, overruns):
         """Update stats labels on the GUI thread."""
         self.stream_rate_label.config(text=f"{msg_per_sec} msg/s")
-        self.stream_total_label.config(text=f"{total:,}")
-        overrun_color = "red" if overruns > 0 else "black"
-        self.stream_overrun_label.config(text=str(overruns), foreground=overrun_color)
+
+        # Only show overrun warning if messages were lost
+        if overruns > 0:
+            self.stream_overrun_label.config(text=f"WARNING: {overruns} message(s) lost!")
+        else:
+            self.stream_overrun_label.config(text="")
 
         # Update recording state: override > 12V
         if self.stream_manager:
