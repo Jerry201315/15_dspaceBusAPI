@@ -93,7 +93,7 @@ class DSpaceGUI:
             'ddg_environment': 'dev',
             'test_setup': '',
             'sample_no': '',
-            'backend_api_url': 'http://10.226.38.100/api',
+            'backend_api_url': 'https://gemini-dash.jlr-apps.com/api',
             'api_token': '03578a8686b5fc6007a6e5266f841756bcd58541',
             'auto_upload_blf': False,
             'blf_save_interval': 240,
@@ -135,7 +135,7 @@ class DSpaceGUI:
         self.ddg_environment_var = tk.StringVar(value=self.settings.get('ddg_environment', 'dev'))
         self.test_setup_var = tk.StringVar(value=self.settings.get('test_setup', ''))
         self.sample_no_var = tk.StringVar(value=self.settings.get('sample_no', ''))
-        self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', '') or 'http://10.226.38.100/api')
+        self.backend_api_url_var = tk.StringVar(value=self.settings.get('backend_api_url', '') or 'https://gemini-dash.jlr-apps.com/api')
         self.auto_upload_blf_var = tk.BooleanVar(value=self.settings.get('auto_upload_blf', False))
         self.blf_save_interval_var = tk.StringVar(value=str(self.settings.get('blf_save_interval', 240)))
 
@@ -1197,10 +1197,12 @@ class DSpaceGUI:
                     merged_settings = default_settings.copy()
                     merged_settings.update(loaded_settings)
 
-                    # Migrate: replace external URL with internal IP
+                    # Ensure backend URL has /api prefix
                     url = merged_settings.get('backend_api_url', '')
-                    if not url or 'jlr-apps.com' in url:
-                        merged_settings['backend_api_url'] = 'http://10.226.38.100/api'
+                    if not url:
+                        merged_settings['backend_api_url'] = 'https://gemini-dash.jlr-apps.com/api'
+                    elif url.rstrip('/').endswith('jlr-apps.com'):
+                        merged_settings['backend_api_url'] = url.rstrip('/') + '/api'
 
                     self.safe_log_message("Settings loaded successfully")
                     return merged_settings
@@ -2534,7 +2536,7 @@ class DSpaceGUI:
         """Fetch SBTL test list from backend API and populate dropdown."""
         api_url = self.backend_api_url_var.get()
         if not api_url:
-            api_url = 'http://10.226.38.100/api'
+            api_url = 'https://gemini-dash.jlr-apps.com/api'
             self.backend_api_url_var.set(api_url)
         try:
             import requests
@@ -2543,7 +2545,13 @@ class DSpaceGUI:
                 messagebox.showwarning("Warning", "API token not set.\n\nSet 'api_token' in dspace_settings.json\nor DDG_API_TOKEN environment variable.")
                 return
             headers = {'Authorization': f'Token {token}'}
-            resp = requests.get(f"{api_url}/sbtl/tests/", headers=headers, timeout=10, verify=False)
+            url = f"{api_url}/sbtl/tests/"
+            self.log_message(f"Fetching SBTL tests from: {url}")
+            resp = requests.get(url, headers=headers, timeout=10, verify=False, allow_redirects=False)
+            if resp.status_code in (301, 302, 307, 308):
+                redirect_url = resp.headers.get('Location', '')
+                self.log_message(f"Server redirected to: {redirect_url} — following with auth")
+                resp = requests.get(redirect_url, headers=headers, timeout=10, verify=False)
             resp.raise_for_status()
             tests = resp.json()
             # Extract test names, sort descending (largest number = latest)
