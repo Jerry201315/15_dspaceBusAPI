@@ -547,8 +547,9 @@ class DsCanApi:
         handle: int,
         can_id: int,
         data: bytes,
-        flags: int = 0,
         extended: bool = False,
+        fd: bool = False,
+        brs: bool = False,
     ):
         """Transmit a single CAN message.
 
@@ -556,20 +557,35 @@ class DsCanApi:
             handle: Channel handle.
             can_id: CAN message identifier.
             data: Payload bytes (max 8 for classic CAN, 64 for CAN FD).
-            flags: TX flags bitmask (DSCAN_TX_MESSAGE_FLAG_xxx).
             extended: If True, use 29-bit extended CAN identifier.
+            fd: If True, send as CAN FD frame (up to 64 bytes).
+            brs: If True, use CAN FD baud rate switching for the data phase.
         """
         from .constants import (
             DSCAN_MESSAGE_TYPE_DATA,
             DSCAN_IDENTIFIER_TYPE_STD,
             DSCAN_IDENTIFIER_TYPE_XTD,
+            DSCAN_TX_MESSAGE_FLAG_FD,
+            DSCAN_TX_MESSAGE_FLAG_FD_BAUDRATE_SWITCH,
+            byte_count_to_dlc,
         )
         msg = DSSCanMessage()
         msg.tMessageType = DSCAN_MESSAGE_TYPE_DATA
         msg.ulCanIdentifier = can_id
         msg.tCanIdentifierType = DSCAN_IDENTIFIER_TYPE_XTD if extended else DSCAN_IDENTIFIER_TYPE_STD
+
+        flags = 0
+        if fd:
+            flags |= DSCAN_TX_MESSAGE_FLAG_FD
+        if brs:
+            flags |= DSCAN_TX_MESSAGE_FLAG_FD_BAUDRATE_SWITCH
         msg.ulFlags = flags
-        msg.usDLC = len(data)
+
+        if fd:
+            msg.usDLC = byte_count_to_dlc(len(data))
+        else:
+            msg.usDLC = min(len(data), 8)
+
         for i, b in enumerate(data):
             msg.ucData[i] = b
 

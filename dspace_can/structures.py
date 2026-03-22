@@ -11,7 +11,7 @@ Reference: dSPACE Bus API Manual, CAN API Reference
 """
 
 import ctypes
-from .constants import DSCAN_MAX_NAME_LENGTH, DSCAN_MAX_DATA_LENGTH
+from .constants import DSCAN_MAX_NAME_LENGTH, DSCAN_MAX_DATA_LENGTH, dlc_to_byte_count
 
 
 class DSSCanChannelInfo(ctypes.Structure):
@@ -89,9 +89,8 @@ class DSSCanMessage(ctypes.Structure):
     ]
 
     def __repr__(self):
-        data_len = min(self.usDLC, 8)  # classic CAN
-        if self.ulFlags & 0x0100:  # DSCAN_RX_MESSAGE_FLAG_FD
-            data_len = self.usDLC
+        is_fd = bool(self.ulFlags & 0x0100)  # DSCAN_RX_MESSAGE_FLAG_FD
+        data_len = dlc_to_byte_count(self.usDLC) if is_fd else min(self.usDLC, 8)
         hex_data = " ".join(f"{self.ucData[i]:02X}" for i in range(data_len))
         id_fmt = f"0x{self.ulCanIdentifier:08X}" if self.tCanIdentifierType == 0x02 else f"0x{self.ulCanIdentifier:03X}"
         return (

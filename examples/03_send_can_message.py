@@ -30,6 +30,8 @@ def main():
     parser.add_argument("--id", type=str, default="0x100", help="CAN message ID (hex, e.g. 0x100)")
     parser.add_argument("--data", type=str, default="01 02 03 04 05 06 07 08", help="Payload as hex bytes")
     parser.add_argument("--extended", action="store_true", help="Use 29-bit extended identifier")
+    parser.add_argument("--fd", action="store_true", help="Send as CAN FD frame (up to 64 bytes)")
+    parser.add_argument("--brs", action="store_true", help="Enable CAN FD baud rate switching")
     parser.add_argument("--channel", type=int, default=0, help="Channel index")
     parser.add_argument("--baudrate", type=int, default=DSCAN_BAUD_500K, help="Baud rate")
     parser.add_argument("--dll", type=str, default=None)
@@ -53,7 +55,7 @@ def main():
     handle = api.register_channel(target)
 
     try:
-        api.init_channel(handle)
+        api.init_channel(handle, fd=args.fd)
         try:
             api.set_baudrate(handle, baudrate=args.baudrate)
         except Exception as e:
@@ -64,9 +66,10 @@ def main():
         # Transmit
         hex_str = " ".join(f"{b:02X}" for b in payload)
         id_str = f"0x{can_id:08X}" if args.extended else f"0x{can_id:03X}"
-        print(f"Sending: ID={id_str} Data=[{hex_str}]")
+        mode = "CAN FD" + (" BRS" if args.brs else "") if args.fd else "CAN"
+        print(f"Sending ({mode}): ID={id_str} Data=[{hex_str}]")
 
-        api.transmit_message(handle, can_id, payload, extended=args.extended)
+        api.transmit_message(handle, can_id, payload, extended=args.extended, fd=args.fd, brs=args.brs)
         print("[OK] Message sent.\n")
 
         # Listen briefly for responses

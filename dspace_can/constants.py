@@ -106,6 +106,22 @@ DSCAN_BAUD_FD_2M = 2_000_000
 DSCAN_BAUD_FD_5M = 5_000_000
 DSCAN_BAUD_FD_8M = 8_000_000
 
+# ---------- CAN FD DLC ↔ byte count mapping ----------
+# DLC 0-8 map 1:1; DLC 9-15 are non-linear (CAN FD only)
+_DLC_TO_BYTES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64]
+_BYTES_TO_DLC = {v: i for i, v in enumerate(_DLC_TO_BYTES)}
+
+def dlc_to_byte_count(dlc: int) -> int:
+    """Convert DLC (0-15) to actual data byte count."""
+    return _DLC_TO_BYTES[dlc] if 0 <= dlc <= 15 else 0
+
+def byte_count_to_dlc(byte_count: int) -> int:
+    """Convert data byte count to the smallest DLC that fits."""
+    for dlc, size in enumerate(_DLC_TO_BYTES):
+        if byte_count <= size:
+            return dlc
+    return 15
+
 # ---------- CAN acceptance ----------
 DSCAN_ACCEPTANCE_ALL = 0x00000000  # accept all messages
 DSCAN_ACCEPTANCE_NONE = 0xFFFFFFFF  # reject all messages
